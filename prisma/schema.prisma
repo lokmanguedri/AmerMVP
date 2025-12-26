@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.String
+  access_token      String? @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.String
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  userId       String   @db.ObjectId
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("user") // "admin" or "user"
+  accounts      Account[]
+  sessions      Session[]
+  orders        Order[]
+}
+
+model Product {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  description   String
+  price         Float
+  category      String
+  brand         String
+  sku           String?
+  image         String   // Primary image URL
+  images        String[] // Gallery
+  inStock       Boolean  @default(true)
+  stockCount    Int      @default(0)
+  rating        Float    @default(0)
+  reviews       Int      @default(0)
+  model3d       String?  // 'headlight', 'spoiler', etc.
+  
+  // Embedded type for compatibility (MongoDB Feature)
+  compatibility Compatibility[] 
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  OrderItems    OrderItem[]
+}
+
+type Compatibility {
+  make  String
+  model String
+  years Int[]
+}
+
+model Order {
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String?     @db.ObjectId // Optional (Guest checkout support)
+  user          User?       @relation(fields: [userId], references: [id])
+  customerName  String
+  phone         String
+  wilaya        String
+  commune       String
+  address       String
+  total         Float
+  status        String      @default("PENDING") // PENDING, SHIPPED, DELIVERED, CANCELLED
+  trackingNumber String?
+  paymentMethod String      @default("COD")     // COD (Cash on Delivery)
+  
+  items         OrderItem[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+type OrderItem {
+  productId String   @db.ObjectId
+  name      String
+  price     Float
+  quantity  Int
+}
